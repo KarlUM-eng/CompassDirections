@@ -20,10 +20,13 @@
             font-size: 1.2em;
         }
         #arrow {
-            font-size: 4em;
-            display: inline-block;
+            width: 60px;
+            height: 60px;
+            border: solid 5px transparent;
+            border-top: solid 5px black;
             transform-origin: center center;
-            transition: transform 0.2s;
+            margin: 20px auto;
+            transition: transform 0.1s;
         }
     </style>
 </head>
@@ -41,7 +44,7 @@
     <div id="output">
         <p><strong>Distance to Target:</strong> <span id="distance">-</span> meters</p>
         <p><strong>Heading to Target:</strong> <span id="heading">-</span>°</p>
-        <p id="arrow">⬆️</p>
+        <div id="arrow"></div>
     </div>
 
     <script>
@@ -49,7 +52,7 @@
         let watchID;
         let deviceOrientationAngle = 0;
 
-        async function startTracking() {
+        function startTracking() {
             const lat = parseFloat(document.getElementById("latitude").value);
             const lon = parseFloat(document.getElementById("longitude").value);
 
@@ -61,52 +64,28 @@
             targetCoords.latitude = lat;
             targetCoords.longitude = lon;
 
-            // Check geolocation permissions
-            try {
-                await requestGeolocationPermission();
-                await requestDeviceOrientationPermission();
-
-                // Start tracking location
-                if (navigator.geolocation) {
-                    watchID = navigator.geolocation.watchPosition(updateDistanceAndHeading, handleError, {
-                        enableHighAccuracy: true,
-                        maximumAge: 1000
-                    });
-                } else {
-                    alert("Geolocation is not supported by this browser.");
-                }
-            } catch (error) {
-                alert(error.message);
-            }
-        }
-
-        async function requestGeolocationPermission() {
-            if (navigator.permissions) {
-                const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
-                if (permissionStatus.state === 'denied') {
-                    throw new Error("Geolocation permission was denied. Please enable it in your browser settings.");
-                }
+            if (navigator.geolocation) {
+                watchID = navigator.geolocation.watchPosition(updateDistanceAndHeading, handleError, {
+                    enableHighAccuracy: true,
+                    maximumAge: 500,
+                    timeout: 500
+                });
             } else {
-                // Older browsers may not support `navigator.permissions`
-                alert("Please ensure location services are enabled in your device settings.");
+                alert("Geolocation is not supported by this browser.");
             }
-        }
 
-        async function requestDeviceOrientationPermission() {
+            // Request device orientation if needed
             if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) {
-                try {
-                    const permissionState = await DeviceOrientationEvent.requestPermission();
-                    if (permissionState !== 'granted') {
-                        throw new Error("Permission denied for device orientation.");
+                DeviceOrientationEvent.requestPermission().then(permissionState => {
+                    if (permissionState === 'granted') {
+                        window.addEventListener('deviceorientation', updateArrowDirection);
+                    } else {
+                        alert("Permission denied for device orientation.");
                     }
-                } catch (error) {
-                    throw new Error("Device orientation permission request failed.");
-                }
-            } else if (!window.DeviceOrientationEvent) {
-                throw new Error("Device orientation not supported on this device.");
+                }).catch(console.error);
+            } else {
+                window.addEventListener('deviceorientation', updateArrowDirection);
             }
-            // Listen for device orientation events if supported
-            window.addEventListener('deviceorientation', updateArrowDirection);
         }
 
         function updateDistanceAndHeading(position) {
@@ -117,9 +96,11 @@
 
             const distance = calculateDistance(userCoords, targetCoords);
             const headingToTarget = calculateBearing(userCoords, targetCoords);
+
             document.getElementById("distance").textContent = distance.toFixed(2);
             document.getElementById("heading").textContent = headingToTarget.toFixed(2);
 
+            // Update the arrow
             const arrowElement = document.getElementById("arrow");
             const rotation = headingToTarget - deviceOrientationAngle;
             arrowElement.style.transform = `rotate(${rotation}deg)`;
@@ -152,7 +133,9 @@
         }
 
         function updateArrowDirection(event) {
-            deviceOrientationAngle = event.alpha || 0;
+            if (event.alpha !== null) {
+                deviceOrientationAngle = event.alpha;
+            }
         }
 
         function toRadians(degrees) {
