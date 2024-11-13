@@ -19,13 +19,15 @@
             margin-top: 20px;
             font-size: 1.2em;
         }
+        /* Define the arrow style */
         #arrow {
-            width: 60px;
-            height: 60px;
-            border: solid 5px transparent;
-            border-top: solid 5px black;
-            transform-origin: center center;
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-bottom: 40px solid black;
             margin: 20px auto;
+            transform-origin: center;
             transition: transform 0.1s;
         }
     </style>
@@ -65,10 +67,11 @@
             targetCoords.longitude = lon;
 
             if (navigator.geolocation) {
+                // Start tracking location with updated settings for timeout and frequency
                 watchID = navigator.geolocation.watchPosition(updateDistanceAndHeading, handleError, {
                     enableHighAccuracy: true,
-                    maximumAge: 500,
-                    timeout: 500
+                    maximumAge: 1000, // Cache position for only 1 second
+                    timeout: 10000 // 10-second timeout to allow more time for positioning
                 });
             } else {
                 alert("Geolocation is not supported by this browser.");
